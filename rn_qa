@@ -1,0 +1,286 @@
+#!/bin/bash -e
+
+run_logged()
+{
+
+    log_file="$1"
+    shift
+
+    "$@" 2>&1 | tee "$log_file"
+    return $?
+
+} # end run_logged()
+
+run_fmri_qa()
+{
+
+    output_dir="$1"
+    log_dir="$output_dir/logs"
+
+    if ! analyze2bxh --version
+    then
+        return 0
+    fi
+
+    # ! to avoid exiting on failure (when -e is used)
+    ! 3dToutcount --version
+
+    if ! analyze2bxh "$output_dir/orig/ts.nii.gz" "$output_dir/orig/ts.bxh"
+    then
+        return 0
+    fi
+
+    fmriqa_generate.pl --verbose "$output_dir/orig/ts.bxh" "$output_dir/ts_qa"
+
+    return 0
+
+} # end run_fmri_qa()
+
+slice_fs()
+{
+
+    fs_slice --version
+
+    fs_slice "$output_dir/fssubj/mri/orig.mgz" \
+             "$output_dir/fssubj/qa/orig.png"
+
+    fs_slice "$output_dir/fssubj/mri/brainmask.mgz" \
+             "$output_dir/fssubj/qa/brainmask.png"
+
+    return 0
+
+} # end slice_fs()
+
+find_peaks()
+{
+
+    output_dir="$1"
+
+    "$RN_QA_DIR/brain_hist" "$output_dir/fssubj/mri/orig.mgz" \
+                            "$output_dir/fssubj/mri/brainmask.mgz" \
+                            "$output_dir/peaks/orig_vals"
+
+    QA_PEAKS_DIR="$output_dir/peaks" R --vanilla < "$RN_QA_DIR/find_peaks.R"
+
+    return 0
+
+} # end find_peaks()
+
+create_thumbnails()
+{
+
+    convert --version
+
+    convert -scale 25% \
+            "$output_dir/fssubj/qa/orig.png" \
+            "$output_dir/thumbnails/orig.png"
+
+    convert -scale 25% \
+            "$output_dir/fssubj/qa/brainmask.png" \
+            "$output_dir/thumbnails/brainmask.png"
+
+    convert -scale 25% \
+            "$output_dir/peaks/peaks.png" \
+            "$output_dir/thumbnails/peaks.png"
+
+    return 0
+
+} # end create_thumbnails()
+
+create_html()
+{
+
+    output_dir="$1"
+
+    "$RN_QA_DIR/create_html" "$output_dir"
+
+    return 0
+
+} # end create_html()
+
+check_run()
+{
+
+    output_dir="$1"
+
+    bxh_xcede_version=`grep '^BXH/XCEDE utilities (.*)$' \
+                            "$output_dir/logs/fmri_qa" \
+                       | sed 's/^.*(\(.*\)).*$/\1/'`
+
+    afni_version=`grep 'AFNI version=' "$output_dir/logs/fmri_qa" \
+                  | sed 's/.*AFNI version=//'`
+
+    if [ ! -f "$output_dir/fssubj/scripts/recon-all.log" ]
+    then
+        fs_version=
+    else
+        fs_version=`awk '$1=="build-stamp.txt:"{print $2}' \
+                        "$output_dir/fssubj/scripts/recon-all.log"`
+    fi
+
+    imagemagick_version=`grep '^Version: ' \
+                              "$output_dir/logs/create_thumbnails" \
+                         | sed 's/Version: //'`
+
+    fs_slice_version=`grep '^fs_slice ' "$output_dir/logs/slice_fs" \
+                     | sed 's/fs_slice //'`
+
+    nibabel_version=`grep '^nibabel version: ' "$output_dir/logs/brain_hist" \
+                     | sed 's/nibabel version: //'`
+
+    jinja_version=`grep '^jinja version' "$output_dir/logs/create_html" \
+                   | sed 's/jinja version //'`
+
+    if [ -z "$bxh_xcede_version" ]
+    then
+        echo "BXH/XCEDE: not present"
+    else
+        echo "BXH/XCEDE: $bxh_xcede_version"
+    fi
+
+    if [ -z "$afni_version" ]
+    then
+        echo "AFNI: not present"
+    else
+        echo "AFNI: $afni_version"
+    fi
+
+    if [ -z "$fs_version" ]
+    then
+        echo "FreeSurfer: not present"
+    else
+        echo "FreeSurfer: $fs_version"
+    fi
+
+    if [ -z "$imagemagick_version" ]
+    then
+        echo "ImageMagick: not present"
+    else
+        echo "ImageMagick: $imagemagick_version"
+    fi
+
+    if [ -z "$fs_slice_version" ]
+    then
+        echo "fs_slice: not present"
+    else
+        echo "fs_slice: $fs_slice_version"
+    fi
+
+    if [ -z "$nibabel_version" ]
+    then
+        echo "nibabel: not present"
+    else
+        echo "nibabel: $nibabel_version"
+    fi
+
+    if [ -z "$jinja_version" ]
+    then
+        echo "Jinja: not present"
+    else
+        echo "Jinja: $jinja_version"
+    fi
+
+    return 0
+
+} # end check_run()
+
+progname=`basename $0`
+
+if [ $# -ne 3 ]
+then
+    echo
+    echo "usage: $progname <anatomical volume> <time series volume> <output directory>"
+    echo
+    echo "performs QA and other checks on the volumes and creates and writes "
+    echo "the output to the output directory"
+    echo
+    if [ -z "$RN_QA_DIR" ]
+    then
+        echo "WARNING: RN_QA_DIR is not set"
+        echo
+    fi
+    exit 1
+fi
+
+if [ -z "$RN_QA_DIR" ]
+then
+    echo "$progname: RN_QA_DIR is not set" >&2
+    exit 1
+fi
+
+anat_vol="$1"
+ts_vol="$2"
+output_dir="$3"
+
+if [ ! -e "$anat_vol" ]
+then
+    echo "$progname: $anat_vol not found"
+    exit 1
+fi
+
+if [ ! -e "$ts_vol" ]
+then
+    echo "$progname: $ts_vol not found"
+    exit 1
+fi
+
+if [ -e "$output_dir" ]
+then
+    echo "$progname: $output_dir exists"
+    exit 1
+fi
+
+mkdir "$output_dir"
+mkdir "$output_dir/orig"
+mkdir "$output_dir/peaks"
+mkdir "$output_dir/thumbnails"
+
+log_dir="$output_dir/logs"
+mkdir "$log_dir"
+
+if echo "$anat_vol" | grep '\.nii\.gz$' > /dev/null
+then
+    cp "$anat_vol" "$output_dir/orig/anat.nii.gz"
+else
+    cp "$anat_vol" "$output_dir/orig/."
+    run_logged "$log_dir/convert_anat.log" \
+               mri_convert \
+               "$output_dir/orig/`basename $anat_vol`" \
+               "$output_dir/orig/anat.nii.gz"
+fi
+
+if echo "$ts_vol" | grep '\.nii\.gz$' > /dev/null
+then
+    cp "$ts_vol" "$output_dir/orig/ts.nii.gz"
+else
+    cp "$ts_vol" "$output_dir/orig/."
+    run_logged "$log_dir/convert_ts.log" \
+               mri_convert \
+               "$output_dir/orig/`basename $ts_vol`" \
+               "$output_dir/orig/ts.nii.gz"
+fi
+
+run_logged "$log_dir/fmri_qa" run_fmri_qa "$output_dir"
+
+SUBJECTS_DIR="$output_dir" recon-all -autorecon1 \
+                                     -i "$output_dir/orig/anat.nii.gz" \
+                                     -subjid fssubj
+
+mkdir "$output_dir/fssubj/qa"
+run_logged "$log_dir/slice_fs" slice_fs
+
+run_logged "$log_dir/brain_hist" find_peaks "$output_dir"
+
+run_logged "$log_dir/create_thumbnails" create_thumbnails
+
+run_logged "$log_dir/create_html" create_html "$output_dir"
+
+run_logged "$output_dir/meta" check_run "$output_dir"
+
+echo
+echo "exiting normally"
+echo
+
+exit 0
+
+# eof

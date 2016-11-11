@@ -1,0 +1,75 @@
+#!/usr/bin/python
+
+import sys
+import os
+import numpy
+import nibabel
+
+progname = os.path.basename(sys.argv[0])
+
+if len(sys.argv) != 4:
+    print 'usage: %s <orig volume> <brain mask> <output file>' % progname
+    sys.exit(1)
+
+orig_fname = sys.argv[1]
+brain_fname = sys.argv[2]
+out_fname = sys.argv[3]
+
+files_error = False
+
+if not os.path.exists(orig_fname):
+    sys.stderr.write('%s: %s does not exist\n' % (progname, orig_fname))
+    files_error = True
+
+if not os.path.exists(brain_fname):
+    sys.stderr.write('%s: %s does not exist\n' % (progname, brain_fname))
+    files_error = True
+
+if os.path.exists(out_fname):
+    sys.stderr.write('%s: %s exists\n' % (progname, out_fname))
+    files_error = True
+
+if files_error:
+    sys.exit(1)
+
+print 'nibabel version: %s' % nibabel.__version__
+
+print 'loading %s...' % orig_fname
+orig = nibabel.load(orig_fname)
+orig_data = orig.get_data()
+
+if len(orig.shape) != 3:
+    sys.stderr.write('%s: orig has %d dimensions (expecting 3)\n' % progname)
+    sys.exit(1)
+
+if orig_data.dtype != numpy.uint8:
+    fmt = '%s: orig has type %s (expecting uint8)\n'
+    sys.stderr.write(fmt % (progname, str(orig_data.dtype)))
+    sys.exit(1)
+
+print 'loading %s...' % brain_fname
+brain = nibabel.load(brain_fname)
+brain_data = brain.get_data()
+
+if orig.shape != brain.shape:
+    fmt = '%s: orig and brain have different dimensions\n' 
+    sys.stderr.write(fmt % progname)
+    sys.exit(1)
+
+if brain_data.dtype != numpy.uint8:
+    fmt = '%s: brain has type %s (expecting uint8)\n'
+    sys.stderr.write(fmt % (progname, str(brain_data.dtype)))
+    sys.exit(1)
+
+print 'counting...'
+
+nvals = orig_data[brain_data > 0]
+bins = numpy.arange(257)-0.5
+(counts, _) = numpy.histogram(nvals, bins=256, range=(0, 255))
+with open('%s' % out_fname, 'w') as fo:
+    for i in xrange(len(counts)):
+        fo.write('%d %d\n' % (i, counts[i]))
+
+sys.exit(0)
+
+# eof
