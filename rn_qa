@@ -125,6 +125,9 @@ check_run()
     fs_slice_version=`grep '^fs_slice ' "$output_dir/logs/slice_fs" \
                      | sed 's/fs_slice //'`
 
+    r_version=`grep '^R version ' "$output_dir/logs/brain_hist" \
+               | sed 's/R version //'`
+
     nibabel_version=`grep '^nibabel version: ' "$output_dir/logs/brain_hist" \
                      | sed 's/nibabel version: //'`
 
@@ -178,6 +181,13 @@ check_run()
         echo "Jinja: not present"
     else
         echo "Jinja: $jinja_version"
+    fi
+
+    if [ -z "$r_version" ]
+    then
+        echo "R: not present"
+    else
+        echo "R: $r_version"
     fi
 
     return 0
