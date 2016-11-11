@@ -2,7 +2,22 @@
 
 import sys
 import os
+import shutil
 import jinja2
+
+def copy(src_dir, src_file, dst_file):
+    """copy a file within the output directory"""
+    src_part = os.path.join(src_dir, src_file)
+    src_path = os.path.join(output_dir, src_part)
+    dst_part = os.path.join('html', dst_file)
+    dst_path = os.path.join(output_dir, dst_part)
+    try:
+        shutil.copy(src_path, dst_path)
+    except:
+        print 'FAILED: %s -> %s' % (src_part, dst_part)
+        raise
+    print '%s -> %s' % (src_part, dst_part)
+    return
 
 progname = os.path.basename(sys.argv[0])
 
@@ -27,6 +42,57 @@ if not rn_qa_dir:
 output_dir = sys.argv[1]
 
 print 'jinja version %s' % jinja2.__version__
+
+if not os.path.isdir(output_dir):
+    sys.stderr.write('%s: %s: not a directory\n' % (progname, output_dir))
+    sys.exit(1)
+
+html_dir = os.path.join(output_dir, 'html')
+
+if os.path.isdir(html_dir):
+    sys.stderr.write('%s: %s exists\n' % (progname, html_dir))
+    sys.exit(1)
+
+os.mkdir(html_dir)
+
+try:
+    copy('ts_qa', 'qa_maskedtdiffvolmeans_allnorm.png', 'mean_diffs.png')
+    have_bxh_xcede = True
+except:
+    have_bxh_xcede = False
+
+try:
+    copy('ts_qa', 'qa_outliercount_all.png', 'outliers.png') 
+    have_afni = True
+except:
+    have_afni = False
+
+try:
+    copy('fssubj/qa', 'orig.png', 'orig.png')
+    copy('thumbnails', 'orig.png', 'orig_t.png')
+    copy('fssubj/qa', 'brainmask.png', 'brainmask.png')
+    copy('thumbnails', 'brainmask.png', 'brainmask_t.png')
+    have_fs = True
+except:
+    have_fs = False
+
+try:
+    copy('peaks', 'peaks.png', 'peaks.png')
+    copy('thumbnails', 'peaks.png', 'peaks_t.png')
+    have_peaks = True
+except:
+    have_peaks = False
+
+template_loader = jinja2.FileSystemLoader(rn_qa_dir)
+env = jinja2.Environment(loader=template_loader)
+template = env.get_template('index.tmpl')
+
+print 'creating index.html...'
+with open(os.path.join(html_dir, 'index.html'), 'w') as fo:
+    fo.write(template.render(have_bxh_xcede=have_bxh_xcede, 
+                             have_afni=have_afni, 
+                             have_fs=have_fs, 
+                             have_peaks=have_peaks))
 
 sys.exit(0)
 

@@ -1,0 +1,50 @@
+<html>
+
+<head>
+<title>ReproNim QA</title>
+</head>
+
+<body>
+
+<h2>BXH/XCEDE</h2>
+
+{% if have_bxh_xcede %}
+    <img src="mean_diffs.png" />
+{% else %}
+    <p>No data!</p>
+{% endif %}
+
+<h2>AFNI</h2>
+
+{% if have_afni %}
+    <img src="outliers.png" />
+{% else %}
+    <p>No data!</p>
+{% endif %}
+
+<h2>FreeSurfer</h2>
+
+{% if have_fs %}
+    <a href="orig.png"><img src="orig_t.png" /></a>
+    <br />
+    <a href="brainmask.png"><img src="brainmask_t.png" /></a>
+{% else %}
+    <p>No data!</p>
+{% endif %}
+
+<h2>Peaks</h2>
+
+{% if have_peaks %}
+    <a href="peaks.png"><img src="peaks_t.png" /></a>
+{% else %}
+    <p>No data!</p>
+{% endif %}
+
+<p>
+<a href="http://www.reproducibleimaging.org/">ReproNim</a>
+<a href="https://github.com/repronim/simple-qa">Simple QA</a>
+</p>
+
+</body>
+
+</html>
