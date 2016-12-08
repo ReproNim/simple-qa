@@ -7,7 +7,7 @@ fairly not-simple in that a complete run requires:
 - AFNI (https://afni.nimh.nih.gov/, NeuroDebian)
 - BXH/XCEDE Tools (https://www.nitrc.org/projects/bxh_xcede_tools)
 - FreeSurfer (http://surfer.nmr.mgh.harvard.edu/)
-- fsutils (PyPi)
+- fsutils (https://github.com/chaselgrove/fsutils, PyPi)
 - ImageMagick (http://www.imagemagick.org/script/index.php, MacPorts, 
   Debian)
 - Jinja2 (Debian, PyPi)
