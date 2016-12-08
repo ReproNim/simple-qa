@@ -9,10 +9,10 @@ fairly not-simple in that a complete run requires:
 - FreeSurfer (http://surfer.nmr.mgh.harvard.edu/)
 - fsutils (PyPi)
 - ImageMagick (http://www.imagemagick.org/script/index.php, MacPorts, 
-  NeuroDebian)
-- Jinja2 (NeuroDebian, PyPi)
+  Debian)
+- Jinja2 (Debian, PyPi)
 - nibabel (NeuroDebian, PyPi)
-- R (https://www.r-project.org/, NeuroDebian)
+- R (https://www.r-project.org/, Debian)
 
 Install the script by putting the contents of this repository in a 
 directory and setting RN_QA_DIR to this directory.
